@@ -1,6 +1,7 @@
 XSIM_DIR =  $(CURDIR)/sim_out_ongoru_cevreleyici
 TESTBENCH_NAME = ongoru_cevreleyici
 TEST_FILES += $(CURDIR)/$(TESTBENCH_NAME).v
+TEST_FILES += $(CURDIR)/ongorucu.v
 
 .PHONY: clean
 .SILENT: clean 
