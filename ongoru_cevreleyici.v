@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-//`define DEBUG_EN
+`define DEBUG_EN
 `define DUMP_EN
 
 `define BRANCH_COUNT 2
@@ -21,11 +21,13 @@
 `define TKN `TKN_OFFSET +: `TKN_LEN
 `define TRG_PC_OFFSET `TKN_OFFSET + `TKN_LEN
 `define TRG_PC `TRG_PC_OFFSET +: `PC_LEN
-`define ENTRY_LEN `TRG_PC_OFFSET + `PC_LEN
+//`define ENTRY_LEN `TRG_PC_OFFSET + `PC_LEN
+`define ENTRY_LEN 100
 
 module ongoru_cevreleyici ();
 
    reg [`ENTRY_LEN-1:0] br_info[0:`BRANCH_COUNT-1];
+   reg [`BRANCH_COUNT * `SIM_LEN - 1:0] mispred_count;
 
    reg read_en;
    reg [$clog2(`BRANCH_COUNT)-1:0] prog_ptr;
@@ -49,7 +51,7 @@ module ongoru_cevreleyici ();
    reg [`ENTRY_LEN-1:0] fetch_entry;
 
    assign pc_mispred = pipe_emul[`BR_RESOLVE_LATENCY-1][`PC] != curr_br_info[`TRG_PC] &&
-   preds_valid[`BR_RESOLVE_LATENCY-1];
+   preds_valid[`BR_RESOLVE_LATENCY];
 
    assign taken_mispred = pipe_emul[`BR_RESOLVE_LATENCY][`TKN] != pipe_preds[`BR_RESOLVE_LATENCY] &&
    preds_valid[`BR_RESOLVE_LATENCY];
@@ -109,7 +111,8 @@ module ongoru_cevreleyici ();
          $display("br_info[%0d] PC is %0h", i, br_info[i][`PC]);
          $display("br_info[%0d] INSTRUCTION is %h", i, br_info[i][`INST]);
          $display("br_info[%0d] TAKEN is %0h", i, br_info[i][`TKN]);
-         $display("br_info[%0d] TARGET PC is %0h\n", i, br_info[i][`TRG_PC]);
+         $display("br_info[%0d] TARGET PC is %h\n", i, br_info[i][`TRG_PC]);
+         $display("br_info[%0d] TARGET PC is %h\n", i, br_info[0]);
       end
       $display("Starting simulation\n");
 `ifdef DUMP_EN
@@ -123,6 +126,7 @@ module ongoru_cevreleyici ();
       $display("Simulation finished at %0t ps", $time);
       $display("Running invalid cycle before finishing simulation");
       @(posedge clk) #10;
+      $display("Prediction accuracy is %0d/%0d", `SIM_LEN * (`BRANCH_COUNT) - mispred_count, `SIM_LEN * (`BRANCH_COUNT));
       $finish;
    end
 
@@ -137,6 +141,7 @@ module ongoru_cevreleyici ();
             pipe_preds[i]  <= 0;
             preds_valid[i] <= 0;
          end
+         mispred_count <= 0;
          pc <= br_info[0][`PC];
       end else begin
          if (read_en) begin
@@ -167,7 +172,7 @@ module ongoru_cevreleyici ();
                pipe_preds[i]  <= 0;
                preds_valid[i] <= 0;
             end
-
+            mispred_count <= mispred_count + 1;
          end
 `ifdef DEBUG_EN
          $display("Fetch PC is %0h", pc);
@@ -189,7 +194,7 @@ module ongoru_cevreleyici ();
    assign next_pc = next_br_info[`PC];
 
    always @* begin
-      if (ex_valid) begin
+      if (flush_en) begin
          read_en = 1;
       end else if (pipe_emul[`BR_RESOLVE_LATENCY][`PC] == curr_pc && preds_valid[`BR_RESOLVE_LATENCY]) begin
          read_en = 1;
