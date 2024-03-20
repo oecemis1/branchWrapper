@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 `define DEBUG_EN
-`define DUMP_EN
+//`define DUMP_EN
 
 `define BRANCH_COUNT 2
 `define SIM_LEN 1
@@ -21,8 +21,7 @@
 `define TKN `TKN_OFFSET +: `TKN_LEN
 `define TRG_PC_OFFSET `TKN_OFFSET + `TKN_LEN
 `define TRG_PC `TRG_PC_OFFSET +: `PC_LEN
-//`define ENTRY_LEN `TRG_PC_OFFSET + `PC_LEN
-`define ENTRY_LEN 100
+`define ENTRY_LEN `TRG_PC_OFFSET + `PC_LEN
 
 module ongoru_cevreleyici ();
 
@@ -34,7 +33,7 @@ module ongoru_cevreleyici ();
    wire [$clog2(`BRANCH_COUNT)-1:0] next_ptr;
    reg [`ENTRY_LEN-1:0] pipe_emul[1:`EX_STAGE_LOC-1];
    reg [`TKN_LEN-1:0] pipe_preds[1:`EX_STAGE_LOC-1];
-   reg [1:`EX_STAGE_LOC-1] preds_valid;
+   reg [`EX_STAGE_LOC-1:1] preds_valid;
 
    wire flush_en;
    wire pc_mispred;
@@ -61,7 +60,12 @@ module ongoru_cevreleyici ();
    wire bp_pred;
    wire [31:0] bp_target;
 
+   reg clk;
+   reg rstn;
+
    ongorucu bp (
+      .clk(clk),
+      .rst(rstn),
       .getir_ps(fetch_entry[`PC]),
       .getir_buyruk(fetch_entry[`INST]),
       .getir_gecerli(fetch_valid),
@@ -74,8 +78,7 @@ module ongoru_cevreleyici ();
       .sonuc_dallan_ps(bp_target)
    );
 
-   reg clk;
-   reg rstn;
+
 
    always begin
       clk = 1;
@@ -105,14 +108,13 @@ module ongoru_cevreleyici ();
          br_info[i] = 0;
       end
       // MEM DOSYASINA DALLANMA BUYRUGU ICIN SIRASIYLA TARGET PC, TAKEN, INSTRUCTION, PC BILGISI YAZILMALIDIR
-      $readmemh("br_info.mem", br_info);
+      $readmemb("br_info.mem", br_info);
       $display("Branch info dump");
       for (i = 0; i < `BRANCH_COUNT; i = i + 1) begin
          $display("br_info[%0d] PC is %0h", i, br_info[i][`PC]);
          $display("br_info[%0d] INSTRUCTION is %h", i, br_info[i][`INST]);
          $display("br_info[%0d] TAKEN is %0h", i, br_info[i][`TKN]);
          $display("br_info[%0d] TARGET PC is %h\n", i, br_info[i][`TRG_PC]);
-         $display("br_info[%0d] TARGET PC is %h\n", i, br_info[0]);
       end
       $display("Starting simulation\n");
 `ifdef DUMP_EN
@@ -126,7 +128,8 @@ module ongoru_cevreleyici ();
       $display("Simulation finished at %0t ps", $time);
       $display("Running invalid cycle before finishing simulation");
       @(posedge clk) #10;
-      $display("Prediction accuracy is %0d/%0d", `SIM_LEN * (`BRANCH_COUNT) - mispred_count, `SIM_LEN * (`BRANCH_COUNT));
+      $display("Prediction accuracy is %0d/%0d", `SIM_LEN * (`BRANCH_COUNT) - mispred_count,
+               `SIM_LEN * (`BRANCH_COUNT));
       $finish;
    end
 

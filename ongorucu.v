@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
 module ongorucu (
+    input clk,
+    input rst,
     input [31:0] getir_ps,
     input [31:0] getir_buyruk,
     input getir_gecerli,
